@@ -1,6 +1,6 @@
 Slight Intro to Go
 And what's new in Go 1.5
-18:30 30 Jul 2015
+30 Jul 2015
 
 Keegan Carruthers-Smith
 Sourcegraph.com
@@ -8,6 +8,92 @@ keegan.csmith@gmail.com
 https://people.cs.uct.ac.za/~ksmith/
 @keegan_csmith
 
-* Hi
+* Why Go?
 
-I need content plox
+Built for systems programming in the large modern enterprise
+
+* Simple and Predictable
+
+- Learn basics fast
+- Avoids magic
+- [[https://tour.golang.org/]]
+
+* Primitives for concurrent programming
+
+- goroutines - green threads -> cheap
+- Not possible in JVM or CLR
+- Actor Model / CSP
+
+.code go-intro-and-15.go /^func goroutineExample/,/^}/
+
+* Testing is a first class citizen
+
+- `go test` is standard
+- `*_test.go`
+
+* Focus on fast scalable tooling
+
+* Easy to use dependency system
+
+.code depexample.go
+
+* Static Duck Typing (Interfaces)
+
+.code go-intro-and-15.go /Interface Start /,/Interface End/
+
+* net/http
+
+* Static binaries
+
+* Cross-compilation
+
+  $ GOOS=darwin GOARCH=386 go build .
+  $ GOOS=android GOARCH=arm GOARM=7 go build .
+
+.image cross_compilation.png
+
+* Companies bet on Go in Production
+
+# Purposefully make this list longer than fits on page
+- Facebook
+- Github
+- Google
+- Drobox
+- Hashicorp
+- Docker
+- Sendgrid
+- Soundcloud
+- Sourcegraph
+- Twitter
+- DigitalOcean
+- GOV.UK
+- CoreOS
+- Economist
+
+* Learn Go
+
+- Interactive tutorial [[https://tour.golang.org/]]
+- Advent series on [[http://blog.gopheracademy.com/]]
+- Set up your text editor
+
+.image gotour.png
+
+* What I don't like about Go
+
+- Errors have no stacktrace
+- Goroutines don't have any metadata
+- Vendoring/package version pinning is immature
+
+* What's new in Go 1.5
+
+- [[https://tip.golang.org/doc/go1.5]]
+- Go compiler is now fully written in Go
+- Compiles are roughly twice as slow :'(
+- `GOMAXPROCS` defaults to number of CPUs
+- Experimental vendoring in go tools
+
+* Garbage Collection Performance Improvements
+.image gc_pause_15.png
+
+* Tracing
+.image trace.png
