@@ -31,7 +31,9 @@ Built for systems programming in the large modern enterprise
 - `go test` is standard
 - `*_test.go`
 
-* Focus on fast scalable tooling
+* Focus on tooling
+
+get, build, doc, test, vet, -deadlock, -race, pprof, gofmt, goimports, ...
 
 * Easy to use dependency system
 
