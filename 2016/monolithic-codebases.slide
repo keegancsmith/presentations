@@ -138,7 +138,7 @@ Use it if you are willing to invest in developer tools as your org grows
 
 * Resources
 
-- [[https://talks.godoc.org/github.com/keegancsmith/presentations/2016/monolithic-codebases.slide]]
+- [[https://go-talks.appspot.com/github.com/keegancsmith/presentations/2016/monolithic-codebases.slide]]
 - [[http://danluu.com/monorepo/]]
 - [[https://www.reddit.com/r/programming/comments/3kzdh2/the_motivation_for_a_monolithic_codebase_why/][Why Google Stores Billions of Lines of Code in a Single Repository]]
 - [[https://code.facebook.com/posts/218678814984400/scaling-mercurial-at-facebook/][Scaling Mercurial at Facebook]]
