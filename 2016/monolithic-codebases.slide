@@ -1,0 +1,145 @@
+Monolithic Codebases
+Cape Town DevOps
+11 Apr 2016
+
+Keegan Carruthers-Smith
+Sourcegraph.com
+keegan.csmith@gmail.com
+https://people.cs.uct.ac.za/~ksmith/
+@keegan_csmith
+
+* Overview
+
+- What?
+- Why?
+- How?
+
+* What?
+
+Companies normally fall into one of
+- Per-project repository
+- Per-language repository
+- One main repository
+
+* Who Practices It?
+
+- Google
+- Facebook
+- Twitter
+- Airbnb (mostly)
+- Digital Ocean
+- Etsy
+- ...
+
+* Why?
+
+Developer Productivity
+
+- Frictionless
+- Sharing code
+- Easy large scale code refactorings
+- Simple to understand what is "now" and "past" (Linear + Atomic)
+- Better tools
+- Simple release model
+
+* Why??
+
+Culture
+
+- Low cost to contribute to unrelated projects
+- Easy to contribute to dependent libraries
+- Easier to move teams
+- Easier to do "re-orgs"
+- No silos from write access rules to repo
+
+* Why???
+
+Problems of many repos
+
+- Diamond Dependencies
+- Dependent changes across repo boundaries
+- Multiple "CI"s to keep green / maintain / improve
+- Out of date libraries frozen in time
+- Users of libraries get breakages when upgrading
+
+* Why????
+
+"A sufficiently advanced multi-repo management system is indistinguishable from a monolithic repository." - sid0
+
+- How do you share code between projects?
+- How do you manage each repo?
+- How do you decide repo boundaries?
+
+* Just make better APIs between projects they said
+
+Accept your API won't be right the very first time
+
+Then you can have
+- APIs that have no stability guarantees
+- But refactor API and every user of it as you find a better way
+
+* Downsides
+
+- Tooling investment
+- Ease of code re-use/including hides its cost
+
+* How?
+
+As the size of the repo, you need to scale several things in developer
+infrastructure
+
+* Trunk-based development
+
+- Work against master == consistent view of the codebase
+- Linear ordering == large scale changes, test failure bots
+- Branching for releases, not features
+- Consistent/easy to understand release process
+
+    A---B---C---D---E master
+         \       \
+          B-------D'  release branch
+
+* What is Scale?
+
+.image google-scale.png
+
+* Source-control
+
+Mercurial has good extensions for scale (developed by FB and Google)
+
+Things that break down at scale:
+- status
+- clone
+- pull/fetch
+- working copy size
+- push contention
+
+* Builds/Tests
+
+- Want consistent way to build/test a project (just run `make`)
+- CI naively has O(n^2) growth of what to do with org size
+- CI access patterns to source control servers
+
+Solution
+- Bazel is good
+- So good that ex-google engineers have re-invented it: Buck (FB), Pants (Twitter)
+- No solution for CI service (that I know of)
+
+* Code Review
+
+- "Pull Request" model doesn't really make sense with high velocity, one source of truth
+- Patch-based instead (Gerrit, Phabricator)
+
+* Conclusion
+
+Monolithic repositories can increase developer productivity
+
+Use it if you are willing to invest in developer tools as your org grows
+
+* Resources
+
+- [[https://talks.godoc.org/github.com/keegancsmith/presentations/2016/monolithic-codebases.slide]]
+- [[http://danluu.com/monorepo/]]
+- [[https://www.reddit.com/r/programming/comments/3kzdh2/the_motivation_for_a_monolithic_codebase_why/][Why Google Stores Billions of Lines of Code in a Single Repository]]
+- [[https://code.facebook.com/posts/218678814984400/scaling-mercurial-at-facebook/][Scaling Mercurial at Facebook]]
+- [[https://news.ycombinator.com/item?id=10007654][On Monolithic Repositories]]
