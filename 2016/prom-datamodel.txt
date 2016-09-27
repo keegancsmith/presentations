@@ -1,0 +1,10 @@
+// Graphite/StatsD
+
+stats.api.tracks.post.500 -> 93
+
+
+// Prometheus
+
+api_http_requests_total{method="POST",handler="/tracks",code="500",instance="<sample1>"} -> 34
+api_http_requests_total{method="POST",handler="/tracks",code="500",instance="<sample2>"} -> 28
+api_http_requests_total{method="POST",handler="/tracks",code="500",instance="<sample3>"} -> 31

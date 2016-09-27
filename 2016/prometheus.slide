@@ -1,0 +1,151 @@
+Prometheus
+Cape Town DevOps
+27 Sep 2016
+
+Keegan Carruthers-Smith
+Sourcegraph.com
+keegan.csmith@gmail.com
+https://people.cs.uct.ac.za/~ksmith/
+@keegan_csmith
+
+* What is Prometheus?
+
+Prometheus is an open-source systems monitoring and alerting toolkit with an
+active ecosystem.
+
+.caption - Prometheus FAQ
+
+* What does Prometheus enable?
+
+.image prom-k8s.png
+
+* What does Prometheus enable?
+
+.image prom-github.png
+
+* What does Prometheus enable?
+
+.image prom-slack.png
+
+* What does Prometheus enable?
+
+.image prom-pagerduty.png
+
+* Pedigree
+
+- Based on Borgmon from Google
+- In use in production at many companies (DigitalOcean, Soundcloud, ...)
+- Cloud Native Computing Foundation (CNCF) project. The only other is Kubernetes.
+- Recommended by Site Reliability Engineering - O'Rielly 2016
+
+* High-Level Features
+
+.image prom-features.png
+
+* Data model
+
+- Traditional store is a collection of `(timestamp, name, value)`
+- Prometheus store is a collection of `(timestamp, name, value, (label1, value1), (label2, value2), ...)`
+
+.code prom-datamodel.txt
+
+* Data model
+
+- Counter - something that keeps increasing (eg: number of requests served)
+- Gauge - can go up or down (eg: size of queue)
+- Histogram - samples of observations (eg: duration of requests). Can be aggregated
+- Summary - sample of observations (eg: duration of requests). Can't be aggregated
+
+* Data collection
+
+- Prometheus is pull based. It scrapes your services/exporters via HTTP
+.code prom-curl.txt
+
+* Pull based means service discovery
+
+If your target addresses don't change often, just hardcode.
+
+For dynamic environments you want Service Discovery. Builtin:
+- Azure
+- Consul
+- DNS A, AAAA and SRV records
+- EC2
+- Kubernetes
+- Marathon
+- Nerve
+- Serversets in Zookeeper
+- Custom SD via reading files
+
+* Golden Signals
+
+- Latency
+.code prom-queries.rule /p95 duration/,/$/
+
+- Traffic
+.code prom-queries.rule /requests per second/,/$/
+
+- Errors
+.code prom-queries.rule /HTTP 500/,/$/
+
+- Saturation
+.code prom-queries.rule /memory/,/$/
+
+* Golden Signals
+
+- Latency
+.code prom-queries.rule /p95 duration/,/OMIT/
+
+- Traffic
+.code prom-queries.rule /requests per second/,/OMIT/
+
+- Errors
+.code prom-queries.rule /HTTP 500/,/OMIT/
+
+- Saturation
+.code prom-queries.rule /memory/,/OMIT/
+
+* Alerting
+
+- Notification: Can send to Email, HipChat, PagerDuty, Pushover, Slack, OpsGenie, generic Webhooks
+- Grouping: Multiple alerts result in one notification
+- Inhibition: Suppress certain alerts if others are firing
+- Silences: Manually mute
+- Routing: Based on alert metadata, do different things
+
+* Alerting
+
+- Just use PromQL, but add a threshold
+
+.code prom-queries.rule /ALERT/,/OMIT/
+
+* Alerting
+
+- We added the label `severity=page`, this is our production `config.yml`
+
+.code prom-config.yml
+
+* Exporters
+
+Officially:
+- Node/system metrics exporter
+- AWS CloudWatch exporter
+- Blackbox exporter
+- Collectd exporter
+- Consul exporter
+- Graphite exporter
+- HAProxy exporter
+- InfluxDB exporter
+- JMX exporter
+- Memcached exporter
+- Mesos task exporter
+- MySQL server exporter
+- SNMP exporter
+- StatsD exporter
+
+Community has written many more.
+
+* Conclusion
+
+Use it!
+
+.image prom-arch.svg

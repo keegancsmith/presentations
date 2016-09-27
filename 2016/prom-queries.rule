@@ -1,0 +1,26 @@
+// Example: p95 duration of requests for the last 5 minutes
+histogram_quantile(0.95, sum(rate(http_request_duration[5m])))
+// OMIT
+
+// Example: Number of requests per second
+sum(rate(http_request_count[5m]))
+sum by (code) (rate(http_request_count[5m]))
+// OMIT
+
+// Example: Number of HTTP 500 per second
+sum(rate(http_request_count{code="500"}[5m]))
+// OMIT
+
+// Example: Amount of memory in use
+container_memory_usage_bytes
+// OMIT
+
+ALERT DBConnectionPoolHigh
+  IF max(src_pgsql_open_connections{job=~"sourcegraph-.*",kubernetes_namespace="prod"}) >= 29
+  FOR 2m
+  LABELS { severity="page" }
+  ANNOTATIONS {
+    summary = "Number of open connections to PGSQL at pool limit",
+    description = "Some requests will be blocked at PGSQL layer due to not being able to get a DB connection instantly from the pool. Potential high traffic. Pool size can be controlled with SRC_PGSQL_MAX_OPEN",
+  }
+// OMIT

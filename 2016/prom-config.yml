@@ -1,0 +1,18 @@
+route:
+  receiver: default-receiver
+  routes:
+  - receiver: opsgenie
+    match:
+      severity: page
+  - receiver: slack
+
+receivers:
+- name: opsgenie
+  opsgenie_configs:
+  - api_key: REMOVED
+    description: "{{range .Alerts}}{{.Annotations.description}}{{end}}"
+- name: slack
+  slack_configs:
+    - api_url: "https://hooks.slack.com/services/REMOVED"
+      channel: "#bot-alerts"
+- name: default-receiver
