@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/didip/tollbooth"
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -155,7 +156,8 @@ func main() {
 		defer closer.Close()
 	}
 
-	handler := nethttp.Middleware(opentracing.GlobalTracer(), http.HandlerFunc(handler))
+	handler := tollbooth.LimitFuncHandler(tollbooth.NewLimiter(1, time.Second), handler)
+	handler = nethttp.Middleware(opentracing.GlobalTracer(), handler)
 	server := &http.Server{Addr: ":8080", Handler: handler}
 	log.Println("Listening on", server.Addr)
 	err = server.ListenAndServe()
