@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+
 	"github.com/google/go-github/github"
 )
 
@@ -91,9 +93,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	closer, err := jaegercfg.Configuration{
+		Sampler: &jaegercfg.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &jaegercfg.ReporterConfig{
+			LogSpans:            false,
+			BufferFlushInterval: 1 * time.Second,
+		},
+	}.InitGlobalTracer("mostBranchesSvc")
+	if err != nil {
+		log.Println("Could not initialize jaeger tracer:", err)
+	} else {
+		defer closer.Close()
+	}
+
 	handler := http.HandlerFunc(handler)
 	server := &http.Server{Addr: ":8080", Handler: handler}
 	log.Println("Listening on", server.Addr)
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	log.Fatal(err)
 }
