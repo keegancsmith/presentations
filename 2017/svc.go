@@ -12,6 +12,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/opentracing-contrib/go-stdlib/nethttp"
+	opentracing "github.com/opentracing/opentracing-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/google/go-github/github"
@@ -28,7 +30,7 @@ type repoBranchCount struct {
 }
 
 func mostBranches(ctx context.Context, owner string) (*repoBranchCount, error) {
-	cl := github.NewClient(githubTransport.Client())
+	cl := githubClient(nethttp.OperationName("Repositories.List"))
 	repos, _, err := cl.Repositories.List(ctx, owner, nil)
 	if err != nil {
 		return nil, err
@@ -41,6 +43,7 @@ func mostBranches(ctx context.Context, owner string) (*repoBranchCount, error) {
 	for _, repo := range repos {
 		repo := repo
 		g.Go(func() error {
+			cl := githubClient(nethttp.OperationName("Repositories.ListBranches"))
 			branches, _, err := cl.Repositories.ListBranches(ctx, *repo.Owner.Login, *repo.Name, nil)
 			if err != nil {
 				return err
@@ -109,9 +112,32 @@ func main() {
 		defer closer.Close()
 	}
 
-	handler := http.HandlerFunc(handler)
+	handler := nethttp.Middleware(opentracing.GlobalTracer(), http.HandlerFunc(handler))
 	server := &http.Server{Addr: ":8080", Handler: handler}
 	log.Println("Listening on", server.Addr)
 	err = server.ListenAndServe()
 	log.Fatal(err)
+}
+
+func githubClient(options ...nethttp.ClientOption) *github.Client {
+	// We use http.RoundTrip to trace calls done by go-github, rather than
+	// instrumentating each call site.
+	t := &tracingTransport{
+		Options: options,
+		RoundTripper: &nethttp.Transport{
+			RoundTripper: githubTransport,
+		},
+	}
+	return github.NewClient(&http.Client{Transport: t})
+}
+
+type tracingTransport struct {
+	Options []nethttp.ClientOption
+	http.RoundTripper
+}
+
+func (t *tracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req, ht := nethttp.TraceRequest(opentracing.GlobalTracer(), req, t.Options...)
+	defer ht.Finish()
+	return t.RoundTripper.RoundTrip(req)
 }
