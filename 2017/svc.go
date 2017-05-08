@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,10 +16,29 @@ import (
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/prometheus/client_golang/prometheus"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/google/go-github/github"
 )
+
+var (
+	running = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "mostbranches",
+		Name:      "running",
+		Help:      "Number of running requests.",
+	})
+	requestTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "mostbranches",
+		Name:      "request_total",
+		Help:      "Total number of served requests.",
+	}, []string{"success"})
+)
+
+func init() {
+	prometheus.MustRegister(running)
+	prometheus.MustRegister(requestTotal)
+}
 
 var githubTransport = &github.UnauthenticatedRateLimitedTransport{
 	ClientID:     os.Getenv("GITHUB_CLIENT"),
@@ -31,6 +51,9 @@ type repoBranchCount struct {
 }
 
 func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err error) {
+	running.Inc()
+	defer running.Dec()
+
 	span, ctx := opentracing.StartSpanFromContext(ctx, "MostBranches")
 	ext.Component.Set(span, "service")
 	span.SetTag("owner", owner)
@@ -44,6 +67,9 @@ func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err 
 			span.SetTag("max.branches", max.Branches)
 		}
 		span.Finish()
+
+		success := strconv.FormatBool(err == nil)
+		requestTotal.WithLabelValues(success).Inc()
 	}()
 
 	cl := githubClient(nethttp.OperationName("Repositories.List"))
