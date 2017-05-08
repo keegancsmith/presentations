@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/google/go-github/github"
@@ -29,17 +30,32 @@ type repoBranchCount struct {
 	Branches int
 }
 
-func mostBranches(ctx context.Context, owner string) (*repoBranchCount, error) {
+func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "MostBranches")
+	ext.Component.Set(span, "service")
+	span.SetTag("owner", owner)
+	defer func() {
+		if err != nil {
+			ext.Error.Set(span, true)
+			span.SetTag("err", err.Error())
+		}
+		if max != nil {
+			span.SetTag("max.repo", max.Repo)
+			span.SetTag("max.branches", max.Branches)
+		}
+		span.Finish()
+	}()
+
 	cl := githubClient(nethttp.OperationName("Repositories.List"))
 	repos, _, err := cl.Repositories.List(ctx, owner, nil)
 	if err != nil {
 		return nil, err
 	}
 	var (
-		g   errgroup.Group
-		mu  sync.Mutex
-		max repoBranchCount
+		g  errgroup.Group
+		mu sync.Mutex
 	)
+	max = &repoBranchCount{}
 	for _, repo := range repos {
 		repo := repo
 		g.Go(func() error {
@@ -57,10 +73,11 @@ func mostBranches(ctx context.Context, owner string) (*repoBranchCount, error) {
 			return nil
 		})
 	}
+	span.LogKV("event", "waiting for goroutines", "count", len(repos))
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
-	return &max, nil
+	return max, nil
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
