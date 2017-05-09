@@ -1,0 +1,22 @@
+@@ -58,7 +59,20 @@ func mostBranches(ctx context.Context, owner string) (*repoBranchCount, error) {
+ }
+
+ func handler(w http.ResponseWriter, r *http.Request) {
+-       owner := strings.TrimPrefix(r.URL.Path, "/")
++       start := time.Now()
++       var (
++               owner string
++               err   error
++       )
++       defer func() {
++               errS := ""
++               if err != nil {
++                       errS = err.Error()
++               }
++               log.Printf("request owner=%v duration=%v error=%q", owner, time.Since(start), errS)
++       }()
++
++       owner = strings.TrimPrefix(r.URL.Path, "/")
+        max, err := mostBranches(r.Context(), owner)
+        if err != nil {
+                code := http.StatusInternalServerError

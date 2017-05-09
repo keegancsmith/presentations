@@ -1,0 +1,20 @@
+ func main() {
++       closer, err := jaegercfg.Configuration{
++               Sampler: &jaegercfg.SamplerConfig{
++                       Type:  "const",
++                       Param: 1,
++               },
++               Reporter: &jaegercfg.ReporterConfig{
++                       LogSpans:            false,
++                       BufferFlushInterval: 1 * time.Second,
++               },
++       }.InitGlobalTracer("mostBranchesSvc")
++       if err != nil {
++               log.Println("Could not initialize jaeger tracer:", err)
++       } else {
++               defer closer.Close()
++       }
++
+        handler := http.HandlerFunc(handler)
+        server := &http.Server{Addr: ":8080", Handler: handler}
+        log.Println("Listening on", server.Addr)

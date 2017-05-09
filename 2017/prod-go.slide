@@ -1,0 +1,264 @@
+Productionizing a Go Service
+Go Cape Town
+9 May 2017
+
+Keegan Carruthers-Smith
+Sourcegraph.com
+keegan.csmith@gmail.com
+https://people.cs.uct.ac.za/~ksmith/
+@keegan_csmith
+
+* Introduction
+
+  $ curl http://localhost:8080/golang
+  github.com/golang/go has the most branches (22) for golang
+
+.image svc-code.png
+
+: Aim of this talk is to show some concrete steps you can take when productionizing a go service. We mostly focus on observability.
+: To make it concrete we have a simple service which speaks to the github API which we will improve.
+
+* Logging
+
+* Logging
+
+.image svc-logging.png
+
+: There are too many options
+
+* Popular Logging
+
+- "log" simple and in the stdlib
+- [[https://github.com/golang/glog]] Leveled logs based on C++ glog
+- [[https://github.com/inconshreveable/log15]] Structured logs
+- [[https://github.com/Sirupsen/logrus]] Structured logs
+- [[https://github.com/uber-go/zap]] Efficient structured logs
+
+* Logging
+
+Personal Bias Incoming: Debug logs aggregated in production usually cost more
+in noise than the value they provide. So I will just do very simple logging
+with stdlib.
+
+  2017/05/08 16:40:44 Listening on :8080
+  2017/05/08 16:40:48 request owner=golang duration=2.721831229s error=""
+  2017/05/08 16:41:18 request owner=keegancsmith duration=3.642600996s error=""
+
+* Logging
+
+.code svc-logging.patch
+
+* Tracing
+
+* Tracing
+
+Instead of debug logs to stderr, consider OpenTracing.
+
+.image svc-jaeger-hotrod.png
+
+* Tracing at RPC Boundaries
+
+Receiving Requests
+
+  import (
+    "github.com/opentracing-contrib/go-stdlib/nethttp"
+    "github.com/opentracing/opentracing-go"
+  )
+
+  handler = nethttp.Middleware(opentracing.GlobalTracer(), handler)
+
+Sending Requests
+
+  req, ht := nethttp.TraceRequest(opentracing.GlobalTracer(), req,
+    nethttp.OperationName("My Subsystem Call"))
+  defer ht.Finish()
+  
+  client := &http.Client{Transport: &nethttp.Transport{}}
+  resp, err := client.Do(req)
+
+* Tracing at RPC Boundaries
+
+.image svc-jaeger.png
+
+* Tracing at RPC Boundaries
+
+.image svc-jaeger-logs.png
+
+* Tracing with Jaeger
+
+  $ docker run -d -p5775:5775/udp -p16686:16686 jaegertracing/all-in-one:latest
+  # http://127.0.0.1:16686/search
+
+.code svc-jaeger.patch
+
+* Tracing with Jaeger
+
+.image svc-jaeger-ui.png
+
+* OpenTracing Instrumentation
+
+What has been added here wasn't really specific to our app. But we can
+instrument it further to understand what it does for a request.
+
+  func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err error) {
+      span, ctx := opentracing.StartSpanFromContext(ctx, "MostBranches")
+      span.SetTag("owner", owner)
+      defer func() {
+          if err != nil {
+              ext.Error.Set(span, true)
+              span.SetTag("err", err.Error())
+          }
+          if max != nil {
+              span.SetTag("max.repo", max.Repo)
+              span.SetTag("max.branches", max.Branches)
+          }
+          span.Finish()
+      }()
+
+Then you can do structured logging
+
+  span.LogKV("event", "waiting for goroutines", "count", len(repos))
+
+* OpenTracing Instrumentation
+
+.image svc-jaeger-ot-logs.png
+
+* Metrics
+
+* Metrics
+
+.image svc-grafana.png
+
+* Metrics
+
+Prometheus is a popular approach for metrics in Go
+
+- Can measure the 4 Golden Signals: Latency, Traffic, Errors, Saturation.
+- I often also instrument queue length and counters for rare conditions.
+- Metrics types: Counter, Gauge, Histogram, Summary. And *Vec
+
+* Metrics
+
+  var running = prometheus.NewGauge(prometheus.GaugeOpts{
+    Namespace: "mostbranches",
+    Name:      "running",
+    Help:      "Number of running requests.",
+  })
+  
+  func init() {
+      prometheus.MustRegister(running)
+  }
+
+Then you can just inc and dec at the entrypoint
+
+  func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err error) {
+      running.Inc()
+      defer running.Dec()
+
+* Testing
+
+* Testing
+
+This example is bad since it trivial computation over network IO... but
+
+  func TestMostBranches(t *testing.T) {
+      ts := httptest.NewServer(http.HandlerFunc(handler))
+      defer ts.Close()
+      // Send requests to ts.URL
+  }
+
+* Benchmarks
+
+  func BenchmarkMostBranches(b *testing.B) {
+      b.ReportAllocs()
+      for n := 0; n < b.N; n++ {
+          // test most branches
+      }
+  }
+
+Then validate changes
+
+  $ git stash
+  $ go test -bench=. -run='^$' | tee before.txt
+  $ git stash pop
+  $ go test -bench=. -run='^$' | tee after.txt
+  $ benchstat before.txt after.txt
+
+* Rate-Limiting
+
+* Rate-Limiting
+
+- [[https://github.com/didip/tollbooth]] HTTP rate limiting middleware
+- [[https://github.com/juju/ratelimit]] Just rate limit datastructure
+- [[https://github.com/go-redis/rate]] Redis based rate limiter
+- [[https://github.com/youtube/doorman]] Rate-limiter for co-operative clients
+
+* Rate-Limiting
+
+Maximum 1 req a second per IP
+
+.code svc-ratelimit.patch
+
+Then
+
+  $ for i in `seq 1 3`; do ((curl http://localhost:8080/golang; echo)&); done
+  $ You have reached maximum request limit.
+  You have reached maximum request limit.
+  github.com/golang/go has the most branches (22) for golang
+
+* Rate-Limiting
+
+For fine-grained rate-limiting, I often use [[https://github.com/juju/ratelimit]]
+
+  var limiter = ratelimit.NewBucketWithRate(2, 10)
+
+  func do(...) {
+      if limiter.TakeAvailable(1) != 1 {
+          rateLimited.Inc() // prometheus counter
+          return ...
+      }
+  }
+
+* Errors
+
+You get an error in yours logs and it just says
+
+  2017/05/08 16:40:48 request owner=golang duration=2.721831229s error="File not found"
+
+WTF. Two tips:
+
+- Use [[https://github.com/pkg/errors]]. Stacktraces and sane error wrapping.
+- Log OpenTracing span ID and/or just search your tracer for tag "error=true".
+
+* Errors
+
+Add context, but also can unwrap
+
+.code svc-errors.patch
+
+* Load Test
+
+Lots of options. [[https://github.com/tsenart/vegeta]] is easy
+
+  $ go get github.com/tsenart/vegeta
+  $ cat targets.txt
+  GET http://localhost:8080/golang
+  GET http://localhost:8080/kubernetes
+  GET http://localhost:8080/juju
+  GET http://localhost:8080/keegancsmith
+  $ vegeta attack -duration=5s -targets=targets.txt > results.bin
+  $ vegeta report < results.bin
+  Requests      [total, rate]            250, 50.20
+  Duration      [total, attack, wait]    14.75464143s, 4.979999767s, 9.774641663s
+  Latencies     [mean, 50, 95, 99, max]  618.456942ms, 2.940968ms, 6.184079568s, 10.313921823s, 10.73936124s
+  Bytes In      [total, mean]            10370, 41.48
+  Bytes Out     [total, mean]            0, 0.00
+  Success       [ratio]                  8.00%
+  Status Codes  [code:count]             429:230  200:20
+  Error Set:
+  429 Too Many Requests
+
+* Links
+
+- Slides [[https://go-talks.appspot.com/github.com/keegancsmith/presentations/2017/prod-go.slide]]
+- Jaeger Tutorial [[https://medium.com/@YuriShkuro/take-opentracing-for-a-hotrod-ride-f6e3141f7941]]
