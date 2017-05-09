@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	_ "net/http/pprof"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/didip/tollbooth"
@@ -141,6 +143,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	go http.ListenAndServe("localhost:6060", nil)
+
 	closer, err := jaegercfg.Configuration{
 		Sampler: &jaegercfg.SamplerConfig{
 			Type:  "const",

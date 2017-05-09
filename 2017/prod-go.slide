@@ -258,7 +258,48 @@ Lots of options. [[https://github.com/tsenart/vegeta]] is easy
   Error Set:
   429 Too Many Requests
 
+* Profile
+
+Expose debugging on a local port is easy
+
+.code svc-pprof.patch
+
+* Profile
+
+Then just visit [[http://localhost:6060/debug/pprof/]]. Now that we have the
+load tests we can profile our code (and can do the same in production!).
+
+  $ vegeta attack -duration=5s -targets=targets.txt > /dev/null &
+  $ go tool pprof http://localhost:6060/debug/pprof/profile  # CPU
+
+Mem you usually want to capture two, and compare to see what changed:
+
+  $ curl http://localhost:6060/debug/pprof/heap > before.mprof
+  $ vegeta attack -duration=5s -targets=targets.txt > /dev/null
+  $ curl http://localhost:6060/debug/pprof/heap > after.mprof
+  $ go tool pprof ./bin/svc before.mprof after.mprof
+
+* Profile
+
+For this application what is probably interesting is goroutines being blocked
+(IO, mutex, etc). Block profiler is disabled by default, so I normally just
+rely on the execution tracer.
+
+  $ vegeta attack -duration=5s -targets=targets.txt > /dev/null &
+  $ curl http://localhost:6060/debug/pprof/trace?seconds=5 > svc.trace
+  $ go tool pprof svc.trace
+
+* Profile
+
+.image svc-trace.png
+
+* Profile
+
+.image svc-trace-zoom.png
+
 * Links
 
 - Slides [[https://go-talks.appspot.com/github.com/keegancsmith/presentations/2017/prod-go.slide]]
 - Jaeger Tutorial [[https://medium.com/@YuriShkuro/take-opentracing-for-a-hotrod-ride-f6e3141f7941]]
+- Tracer Tutorial [[https://making.pusher.com/go-tool-trace/]]
+- Tracer to debug latency [[https://www.youtube.com/watch?v=nsM_m4hZ-bA]]
