@@ -17,6 +17,7 @@ import (
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
@@ -89,7 +90,7 @@ func mostBranches(ctx context.Context, owner string) (max *repoBranchCount, err 
 			cl := githubClient(nethttp.OperationName("Repositories.ListBranches"))
 			branches, _, err := cl.Repositories.ListBranches(ctx, *repo.Owner.Login, *repo.Name, nil)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "failed to list branches for %s/%s", *repo.Owner.Login, *repo.Name)
 			}
 			mu.Lock()
 			if len(branches) > max.Branches {
@@ -125,7 +126,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	max, err := mostBranches(r.Context(), owner)
 	if err != nil {
 		code := http.StatusInternalServerError
-		if gerr, ok := err.(*github.ErrorResponse); ok {
+		if gerr, ok := errors.Cause(err).(*github.ErrorResponse); ok {
 			code = gerr.Response.StatusCode
 		}
 		http.Error(w, err.Error(), code)
