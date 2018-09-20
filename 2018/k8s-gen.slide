@@ -21,6 +21,7 @@ Goal: Give ideas for a few ways to write and customise Kubernetes resources.
 - Reusable components.
 - Easy customisation.
 
+: documentation uses small examples
 : using a consistent label like app=name
 : consistently raising resource limits
 : adjusting resources like PV to add cloud specific annotations
@@ -37,6 +38,7 @@ Goal: Give ideas for a few ways to write and customise Kubernetes resources.
 * K8S @ Sourcegraph
 
 - Optional services.
+- Customers with different scale.
 - Flexible for requirements different organisations impose on kubernetes.
 
 https://github.com/sourcegraph/deploy-sourcegraph
