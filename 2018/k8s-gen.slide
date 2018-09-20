@@ -40,8 +40,7 @@ Goal: Give ideas for a few ways to write and customise Kubernetes resources.
 - Optional services.
 - Customers with different scale.
 - Flexible for requirements different organisations impose on kubernetes.
-
-https://github.com/sourcegraph/deploy-sourcegraph
+- Our resources are OSS https://github.com/sourcegraph/deploy-sourcegraph
 
 * Customisation
 
