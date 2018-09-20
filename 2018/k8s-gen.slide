@@ -1,0 +1,353 @@
+Generating Kubernetes Resources
+DevOpsDays Cape Town
+20 Sep 2018
+
+Keegan Carruthers-Smith
+Sourcegraph.com
+keegan.csmith@gmail.com
+https://people.cs.uct.ac.za/~ksmith/
+@keegan_csmith
+
+* Introduction
+
+Target: People who use Kubernetes.
+
+Goal: Give ideas for a few ways to write and customise Kubernetes resources.
+
+* Why not just plain YAML?
+
+- Reduce boilerplate.
+- Consistency across resources.
+- Reusable components.
+- Easy customisation.
+
+: using a consistent label like app=name
+: consistently raising resource limits
+: adjusting resources like PV to add cloud specific annotations
+: Helpers to generate service accounts with specific RBAC roles
+: Including/excluding services easily
+
+* History of K8S @ Sourcegraph
+
+- Late 2015: Sourcegraph.com switched to kubernetes.
+- Late 2016: Shipped to customer datacenters via kubernetes.
+- Early 2018: Switched to using helm directly.
+- Now: Plain YAML files. Instructions on how to compose.
+
+* K8S @ Sourcegraph
+
+- Optional services.
+- Flexible for requirements different organisations impose on kubernetes.
+
+https://github.com/sourcegraph/deploy-sourcegraph
+
+* Customisation
+
+.image config-toc.png
+
+* Some options
+
+- Plain YAML
+- Helm
+- Code Generators
+- ksonnet
+- kustomize
+- dhall
+
+* Plain YAML
+
+ $ tree base | head -n 20
+ base
+ |-- backend.Service.yaml
+ |-- config-file.ConfigMap.yaml
+ |-- frontend
+ |   |-- sourcegraph-frontend-internal.Service.yaml
+ |   |-- sourcegraph-frontend.Deployment.yaml
+ |   |-- sourcegraph-frontend.Role.yaml
+ |   |-- sourcegraph-frontend.RoleBinding.yaml
+ |   |-- sourcegraph-frontend.Service.yaml
+ |   `-- sourcegraph-frontend.ServiceAccount.yaml
+ |-- github-proxy
+ |   |-- github-proxy.Deployment.yaml
+ |   `-- github-proxy.Service.yaml
+ |-- gitserver
+ |   |-- gitserver.Service.yaml
+ |   `-- gitserver.StatefulSet.yaml
+ |-- indexed-search
+ |   |-- indexed-search.Deployment.yaml
+ |   |-- indexed-search.PersistentVolumeClaim.yaml
+ |   `-- indexed-search.Service.yaml
+
+* Plain YAML
+
+  $ head base/github-proxy/github-proxy.Deployment.yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      description: Rate-limiting proxy for the GitHub API.
+    labels:
+      deploy: sourcegraph
+    name: github-proxy
+  spec:
+    minReadySeconds: 10
+
+  $ kubectl apply --prune -l deploy=sourcegraph -f base --recursive
+
+* Helm
+
+https://helm.sh/
+
+- Templated
+- Tiller: Server side component
+
+* Helm
+
+  $ tree templates/ | head -n 20
+  templates/
+  |-- _helpers.tpl
+  |-- auth-proxy
+  |   |-- auth-proxy.Deployment.yaml
+  |   `-- auth-proxy.Service.yaml
+  |-- backend.Service.yaml
+  |-- config-file.ConfigMap.yaml
+  |-- frontend
+  |   |-- sourcegraph-frontend-internal.Service.yaml
+  |   |-- sourcegraph-frontend.Deployment.yaml
+  |   |-- sourcegraph-frontend.Role.yaml
+  |   |-- sourcegraph-frontend.RoleBinding.yaml
+  |   |-- sourcegraph-frontend.Service.yaml
+  |   `-- sourcegraph-frontend.ServiceAccount.yaml
+  |-- github-proxy
+  |   |-- github-proxy.Deployment.yaml
+  |   `-- github-proxy.Service.yaml
+  |-- gitserver
+  |   |-- gitserver-ssh.Secret.yaml
+  |   |-- gitserver.Deployment.yaml
+
+* Helm
+
+  $ head templates/github-proxy/github-proxy.Deployment.yaml
+  {{- $envVars := dict -}}
+  {{- include "collectConfigEnv" (dict "envVars" $envVars "Values" .Values "Files" .Files) }}
+  {{- $_ := set $envVars "GITHUB_CLIENT_ID" .Values.site.githubClientID -}}
+  {{- $_ := set $envVars "GITHUB_CLIENT_SECRET" .Values.site.githubClientSecret -}}
+  {{- $_ := set $envVars "GITHUB_PERSONAL_ACCESS_TOKEN" .Values.site.githubPersonalAccessToken -}}
+  {{- $_ := set $envVars "LOG_REQUESTS" "\"true\"" -}}
+
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+
+* Helm
+
+  $ grep -C 1 '{{' templates/github-proxy/github-proxy.Deployment.yaml
+  {{- $envVars := dict -}}
+  {{- include "collectConfigEnv" (dict "envVars" $envVars "Values" .Values "Files" .Files) }}
+  {{- $_ := set $envVars "GITHUB_CLIENT_ID" .Values.site.githubClientID -}}
+  {{- $_ := set $envVars "GITHUB_CLIENT_SECRET" .Values.site.githubClientSecret -}}
+  {{- $_ := set $envVars "GITHUB_PERSONAL_ACCESS_TOKEN" .Values.site.githubPersonalAccessToken -}}
+  {{- $_ := set $envVars "LOG_REQUESTS" "\"true\"" -}}
+
+  --
+  --
+        - env:
+          {{- include "envVars" $envVars | indent 8 | trimPrefix (repeat 8 " ") }}
+          image: {{ .Values.const.githubProxy.image }}
+          name: github-proxy
+  --
+  --
+          volumeMounts:
+          {{- include "commonVolumeMounts" . | indent 8 | trimPrefix (repeat 8 " ") }}
+          - mountPath: /etc/sourcegraph
+  --
+  --
+            name: sg-config
+        {{- include "jaeger" . | nindent 6 | trimSuffix "\n      " }}
+        {{- include "securityContext" . | nindent 6 }}
+        {{- include "nodeSelector" (list .Values "githubProxy") | nindent 6 | trimSuffix "\n      " }}
+        volumes:
+  --
+  --
+        volumes:
+        {{- include "commonVolumes" . | indent 6 | trimPrefix (repeat 6 " ") }}
+        - configMap:
+  --
+  --
+        - configMap:
+            defaultMode: {{ .Values.cluster.configVolume.defaultMode }}
+            name: config-file
+
+* Helm3 (lua)
+
+- Doesn't exist yet!
+- Proposals are viewable.
+- https://sweetcode.io/a-first-look-at-the-helm-3-plan/
+
+* Helm3
+
+  function create_alpine_pod(_)
+    local pod = {
+      apiVersion = "v1",
+      kind = "Pod",
+      metadata = {
+        name = alpine_fullname(_),
+        labels = {
+          heritage = _.Release.Service or "helm",
+          release = _.Release.Name,
+          chart = _.Chart.Name .. "-" .. _.Chart.Version,
+          app = alpine_name(_)
+        }
+      },
+      spec = {
+        restartPolicy = _.Values.restartPolicy,
+        containers = {
+          {
+            name = waiter,
+            image = _.Values.image.repository .. ":" .. _.Values.image.tag,
+            imagePullPolicy = _.Values.image.pullPolicy,
+            command = {
+              "/bin/sleep",
+              "9000"
+            }
+          }
+        }
+      }
+    }
+
+    _.resources.add(pod)
+  end
+
+* Helm3
+
+  local pods = require("mylib.pods");
+
+  function create_alpine_pod(_)
+    myPod = pods.new("alpine:3.7", _)
+    myPod.spec.restartPolicy = "Always"
+    -- set any other properties
+    _.Manifests.add(myPod)
+  end
+
+* Code Generators
+
+The kubernetes project exports the Go structs it uses to represent the resources.
+
+.image go-deployment.png
+
+* Code Generators
+
+https://github.com/sourcegraph/kg
+
+.image kg.png
+
+: mention other languages you can do this
+
+* Code Generators
+
+.image kg-ide.png
+
+* kustomize
+
+https://github.com/kubernetes-sig/kustomize
+
+  $ cat kustomization.yaml
+  bases:
+  - ../base
+  patches:
+  - use-tls.yaml
+
+* kustomize
+
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: sourcegraph-frontend
+  spec:
+    template:
+      spec:
+        containers:
+        - name: frontend
+          env:
+          - name: TLS_CERT
+            valueFrom:
+              secretKeyRef:
+                key: cert
+                name: tls
+          - name: TLS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: key
+                name: tls
+
+* ksonnet
+
+- https://ksonnet.io/tour
+- https://jsonnet.org
+
+: extension of JSON which adds variables, functions, libraries, composition, etc
+: ksonnet is jsonnet targetted at kubernetes
+
+* ksonnet
+
+  $ cat demo.jsonnet
+  local params = std.extVar("__ksonnet/params").components.demo;
+  local k = import "k.libsonnet";
+  local deployment = k.apps.v1beta1.deployment;
+  local container = k.apps.v1beta1.deployment.mixin.spec.template.spec.containersType;
+  local containerPort = container.portsType;
+
+  local targetPort = params.containerPort;
+  local labels = {app: params.name};
+
+  local appDeployment = deployment
+    .new(
+      params.name,
+      params.replicas,
+      container
+        .new(params.name, params.image)
+        .withPorts(containerPort.new(targetPort)),
+      labels);
+
+  k.core.v1.list.new([appDeployment])
+
+* ksonnet
+
+  $ cat params.libsonnet
+  local params = import "./components/params.libsonnet";
+  params + {
+    components +: {
+      demo +: {
+        replicas: 2,
+      },
+    },
+  }
+
+* dhall
+
+"A configuration language guaranteed to terminate"
+
+- Dhall is a programmable configuration language that is not Turing-complete
+- You can think of Dhall as: JSON + functions + types + imports
+- https://github.com/dhall-lang/dhall-lang
+- https://github.com/dhall-lang/dhall-kubernetes
+
+* dhall
+
+  let config =
+    ../api/Deployment/default
+    //
+    { name = "nginx"
+    , replicas = 2
+    , containers =
+      [ ../api/Deployment/defaultContainer
+        //
+        { name = "nginx"
+        , imageName = "nginx"
+        , imageTag = "1.15.3"
+        , port = [ 80 ] : Optional Natural
+        }
+      ]
+    }
+
+  in ../api/Deployment/mkDeployment config
