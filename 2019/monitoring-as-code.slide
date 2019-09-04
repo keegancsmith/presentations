@@ -8,36 +8,84 @@ keegan.csmith@gmail.com
 https://people.cs.uct.ac.za/~ksmith/
 @keegan_csmith
 
-* Abstract
-
-TODO
-
-Prometheus define monitoring rules with code. This allows us to apply some
-devops principles to monitoring: source control, code review and continuous
-integration. Additionally terraform has a rich plugin system, allowing you to
-configure monitoring services (like pingdom) in code.
-
 * Introduction
 
+- Treating monitoring as code.
+- The rules/alerts we have that can wake us up at night.
+- Prometheus
+- Pingdom
+
+: Who am I
+: Where do I work
 : Do a light plug on Sourcegraph. Mention distribution team.
 
 * Prometheus
 
+Prometheus is an open-source systems monitoring and alerting toolkit with an
+active ecosystem.
+
+.caption - Prometheus FAQ
+
+* Prometheus: Instrument code
+
+.code ../2016/prom-example.py
+
 * Prometheus alert rules are just code
+
+.code alert.yml
+
+* Unit Testing
+
+.image alert-test.png
 
 * Source Control
 
+.image alert-log.png
+
 * Continuous Integration
 
-- Check if valid
-- Enforce convention
+.code ci.sh
 
 * Continuous Deployment
 
-* Blackbox monitoring
+- Deploy config/alerts/rules on master CI runs.
+- Prometheus supports reloading config without restart.
+
+* Continuous Deployment: Kubernetes
+
+- We store all rules as a configmap and update it in CI
+
+# source https://raw.githubusercontent.com/kubernetes/kubernetes/master/cluster/addons/prometheus/prometheus-statefulset.yaml
+.code prometheus-statefulset.yaml  /prometheus-server-configmap-reload/,/readOnly/
+
+* Pingdom
+
+- External uptime monitoring
+- Lots of alternatives
+- Prometheus has `blackbox_exporter`
+
+* Pingdom: but does it code?
+
+- Not directly...
+
+* Pingdom: but does it code?
+
+- Not directly...
+- But has an *API*
 
 * Terraform
 
+- Infrastructure as code - _terraform.io_
+- Has providers (plugins)!
+
 * Terraform + Pingdom
 
+- https://github.com/russellcardullo/terraform-provider-pingdom
+
+.code pingdom.tf
+
 * Terraform + Pingdom + CI/CD
+
+- PR `terraform plan`
+- Master `terraform plan -detailed-exitcode`
+- Lots of resources on doing the above better.

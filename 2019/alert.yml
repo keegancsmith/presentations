@@ -1,0 +1,17 @@
+groups:
+- name: devopsdaysct
+  rules:
+
+  - alert: TooManyFailures
+    expr: delta(my_failures_total[1m]) > 5
+    annotations:
+      summary: More than 5 failures in the last minute
+
+  - alert: GoroutineLeak
+    expr: go_goroutines >= 10000
+    for: 10m
+    labels:
+      assignee: core
+    annotations:
+      summary: Excessive number of goroutines
+      description: "{{ $labels.app }} has more than 10k goroutines. This is probably a regression causing a goroutine leak"
