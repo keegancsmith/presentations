@@ -1,0 +1,43 @@
+Monitoring as Code
+DevOpsDays Cape Town
+5 Sep 2019
+
+Keegan Carruthers-Smith
+Sourcegraph.com
+keegan.csmith@gmail.com
+https://people.cs.uct.ac.za/~ksmith/
+@keegan_csmith
+
+* Abstract
+
+TODO
+
+Prometheus define monitoring rules with code. This allows us to apply some
+devops principles to monitoring: source control, code review and continuous
+integration. Additionally terraform has a rich plugin system, allowing you to
+configure monitoring services (like pingdom) in code.
+
+* Introduction
+
+: Do a light plug on Sourcegraph. Mention distribution team.
+
+* Prometheus
+
+* Prometheus alert rules are just code
+
+* Source Control
+
+* Continuous Integration
+
+- Check if valid
+- Enforce convention
+
+* Continuous Deployment
+
+* Blackbox monitoring
+
+* Terraform
+
+* Terraform + Pingdom
+
+* Terraform + Pingdom + CI/CD
