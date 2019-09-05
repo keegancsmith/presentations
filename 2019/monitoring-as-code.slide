@@ -12,12 +12,16 @@ https://people.cs.uct.ac.za/~ksmith/
 
 - Treating monitoring as code.
 - The rules/alerts we have that can wake us up at night.
+- Code == can apply devops principles to it.
 - Prometheus
 - Pingdom
 
-: Who am I
-: Where do I work
-: Do a light plug on Sourcegraph. Mention distribution team.
+* Background
+
+- We ship our code into customer's data centers
+- Either single docker image, or many kubernetes resources.
+- Code search/intelligence product, so team that usually looks after it is devtools.
+- They want monitoring on it.
 
 * Prometheus
 
@@ -34,13 +38,17 @@ active ecosystem.
 
 .code alert.yml
 
+* Source Control
+
+.image alert-log.png
+
 * Unit Testing
 
 .image alert-test.png
 
-* Source Control
+* Unit Testing
 
-.image alert-log.png
+.code test.yml /tests/,/description/
 
 * Continuous Integration
 
